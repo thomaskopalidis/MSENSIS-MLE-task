@@ -23,7 +23,6 @@ served through a FastAPI backend with a Streamlit front-end.
 ├── data/
 │   ├── raw/                       # Raw images (cats/, dogs/) - not tracked in git
 │   └── processed/                 # train.csv, val.csv, test.csv
-├── tests/                          # API tests
 ├── report.pdf                       # Write-up: methodology, results, evaluation
 └── requirements.txt
 ```
@@ -81,12 +80,6 @@ streamlit run app/streamlit_app.py
 ```
 
 Upload an image of a cat or dog and click "Ταξινόμηση" to get a prediction.
-
-## Tests
-
-```bash
-pytest tests/ -v
-```
 
 ## Notes
 
