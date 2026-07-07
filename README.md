@@ -95,3 +95,9 @@ pytest tests/ -v
 - The model expects a `models/best_model/` directory in HuggingFace format
   (`config.json`, `model.safetensors`, `preprocessor_config.json`), produced
   automatically by `train.py`.
+
+## Copyright
+
+© 2026 Thomas Kopalidis. All rights reserved. This repository is shared
+publicly for review purposes only; no license is granted for reuse,
+redistribution, or modification without explicit permission.
