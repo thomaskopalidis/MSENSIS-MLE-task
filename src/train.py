@@ -1,10 +1,9 @@
-import time 
 import torch 
 from torch.utils.data import DataLoader
 from transformers import get_linear_schedule_with_warmup
 from model import build_model
 from cd_dataset import CatsDogsDataset
-
+import time 
 
 def evaluate(model, loader, device):
     """
