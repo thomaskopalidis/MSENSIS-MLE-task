@@ -1,0 +1,97 @@
+# Cats & Dogs Classifier
+
+A fine-tuned Vision Transformer (ViT) that classifies images as cat or dog,
+served through a FastAPI backend with a Streamlit front-end.
+
+## Project structure
+
+```
+.
+├── app/
+│   ├── api.py              # FastAPI service (/health, /predict)
+│   ├── inference.py         # Model loading + prediction logic
+│   └── streamlit_app.py     # Streamlit UI, calls the API
+├── src/
+│   ├── data_preprocessing.py  # Builds manifest, stratified train/val/test split
+│   ├── cd_dataset.py           # PyTorch Dataset for cats/dogs
+│   ├── model.py                # ViT model + processor builder
+│   └── train.py                 # Training loop + final test-set evaluation
+├── notebooks/
+│   └── EDA.ipynb                # Data exploration (class balance, image sizes)
+├── models/
+│   └── best_model/               # Saved checkpoint (config, weights, preprocessor)
+├── data/
+│   ├── raw/                       # Raw images (cats/, dogs/) - not tracked in git
+│   └── processed/                 # train.csv, val.csv, test.csv
+├── tests/                          # API tests
+├── report.pdf                       # Write-up: methodology, results, evaluation
+└── requirements.txt
+```
+
+## Setup
+
+```bash
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+```
+
+## Data preparation
+
+Place raw images under `data/raw/cats/` and `data/raw/dogs/`, then run:
+
+```bash
+python src/data_preprocessing.py
+```
+
+This creates `data/processed/train.csv`, `val.csv`, and `test.csv` (80/10/10
+stratified split).
+
+## Training
+
+```bash
+python src/train.py
+```
+
+Trains a ViT (`google/vit-base-patch16-224`) fine-tuned for binary
+classification. The best checkpoint (by validation accuracy) is saved to
+`models/best_model/`, and a final evaluation (accuracy, precision, recall,
+F1, confusion matrix) is printed on the held-out test set.
+
+## Running the app
+
+Start the API (from the project root):
+
+```bash
+uvicorn app.api:app --reload --port 8000
+```
+
+Check it's healthy:
+
+```bash
+curl http://localhost:8000/health
+```
+
+Interactive API docs: http://localhost:8000/docs
+
+In a second terminal, start the UI:
+
+```bash
+streamlit run app/streamlit_app.py
+```
+
+Upload an image of a cat or dog and click "Ταξινόμηση" to get a prediction.
+
+## Tests
+
+```bash
+pytest tests/ -v
+```
+
+## Notes
+
+- `app/__init__.py` must exist (can be empty) for `uvicorn app.api:app` and
+  the `from app.inference import ...` import in `api.py` to work.
+- The model expects a `models/best_model/` directory in HuggingFace format
+  (`config.json`, `model.safetensors`, `preprocessor_config.json`), produced
+  automatically by `train.py`.
