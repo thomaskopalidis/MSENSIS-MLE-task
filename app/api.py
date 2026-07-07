@@ -1,16 +1,13 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
-from PIL import Image
-import torch
-import io
-from transformers import ViTForImageClassification, ViTImageProcessor
+from fastapi import FastAPI, UploadFile, File, HTTPException, Form
+from typing import Literal
+
+from app.inference import predict_image, load_model
 
 app = FastAPI(title="Cats & Dogs Classifier API")
 
-MODEL_PATH = "models/best_model"
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-model = ViTForImageClassification.from_pretrained(MODEL_PATH).to(device)
-processor = ViTImageProcessor.from_pretrained(MODEL_PATH)
-model.eval()
+# Pre-load both models at startup rather than on first request per model.
+load_model("finetuned")
+load_model("pretrained")
 
 
 @app.get("/health")
@@ -19,20 +16,25 @@ def health():
 
 
 @app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-    if not file.content_type.startswith("image/"):
+async def predict(
+    file: UploadFile = File(...),
+    model_choice: Literal["finetuned", "pretrained"] = Form("finetuned"),
+):
+    """
+    Classify an uploaded image as cat or dog.
+
+    - model_choice="finetuned": uses the ViT fine-tuned on the cats/dogs dataset.
+    - model_choice="pretrained": uses the general-purpose ImageNet ViT with no
+      fine-tuning, mapping its predictions down to cat/dog.
+    """
+    if not file.content_type or not file.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="File must be an image")
 
     contents = await file.read()
-    image = Image.open(io.BytesIO(contents)).convert("RGB")
-    inputs = processor(images=image, return_tensors="pt").to(device)
 
-    with torch.no_grad():
-        outputs = model(**inputs)
-        probs = torch.softmax(outputs.logits, dim=-1)[0]
-        pred_id = probs.argmax().item()
+    try:
+        result = predict_image(contents, model_choice=model_choice)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"Could not process image: {e}")
 
-    return {
-        "predicted_class": model.config.id2label[pred_id],
-        "confidence": round(probs[pred_id].item(), 4),
-    }
+    return result

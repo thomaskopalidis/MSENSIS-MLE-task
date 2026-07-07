@@ -1,9 +1,14 @@
 """
 Inference module for the Cats & Dogs classifier.
 
-Loads the trained ViT model once and exposes a single `predict_image`
-function used both by the FastAPI service (api.py) and by any offline
-scoring scripts.
+Supports two models, selectable at call time:
+- "finetuned": the ViT fine-tuned on the cats/dogs dataset (models/best_model/)
+- "pretrained": the general-purpose ImageNet ViT (google/vit-base-patch16-224)
+  with no fine-tuning. Its 1000 ImageNet classes are mapped down to a binary
+  cat/dog decision by summing softmax probability over the known ImageNet
+  cat-breed and dog-breed class indices.
+
+Both are used by the FastAPI service (api.py) and the Streamlit UI.
 """
 
 import io
@@ -13,42 +18,46 @@ import torch
 from PIL import Image
 from transformers import ViTForImageClassification, ViTImageProcessor
 
-MODEL_PATH = Path("models/best_model")
+FINETUNED_MODEL_PATH = Path("models/best_model")
+PRETRAINED_MODEL_NAME = "google/vit-base-patch16-224"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-_model = None
-_processor = None
+# Standard ImageNet-1k class indices for cat and dog breeds.
+IMAGENET_CAT_INDICES = [281, 282, 283, 284, 285]  # tabby, tiger cat, Persian, Siamese, Egyptian
+IMAGENET_DOG_INDICES = list(range(151, 269))  # Chihuahua ... Mexican hairless
+
+_models = {}  # cache: {"finetuned": (model, processor), "pretrained": (model, processor)}
 
 
-def load_model():
+def load_model(which: str = "finetuned"):
     """
-    Load the fine-tuned ViT model and its image processor from disk.
-    Cached at module level so repeated calls don't reload the weights.
+    Load and cache one of the two supported models.
+
+    Args:
+        which: "finetuned" for the cats/dogs fine-tuned ViT, or "pretrained"
+            for the general ImageNet ViT baseline.
 
     Returns:
         tuple: (model, processor)
     """
-    global _model, _processor
-    if _model is None or _processor is None:
-        _model = ViTForImageClassification.from_pretrained(MODEL_PATH).to(DEVICE)
-        _processor = ViTImageProcessor.from_pretrained(MODEL_PATH)
-        _model.eval()
-    return _model, _processor
+    if which not in ("finetuned", "pretrained"):
+        raise ValueError(f"Unknown model choice: {which}")
+
+    if which not in _models:
+        if which == "finetuned":
+            model = ViTForImageClassification.from_pretrained(FINETUNED_MODEL_PATH).to(DEVICE)
+            processor = ViTImageProcessor.from_pretrained(FINETUNED_MODEL_PATH)
+        else:
+            model = ViTForImageClassification.from_pretrained(PRETRAINED_MODEL_NAME).to(DEVICE)
+            processor = ViTImageProcessor.from_pretrained(PRETRAINED_MODEL_NAME)
+        model.eval()
+        _models[which] = (model, processor)
+
+    return _models[which]
 
 
-def predict_image(image_bytes: bytes) -> dict:
-    """
-    Run inference on raw image bytes and return the predicted class and confidence.
-
-    Args:
-        image_bytes: Raw bytes of the uploaded image file.
-
-    Returns:
-        dict: {"predicted_class": str, "confidence": float}
-    """
-    model, processor = load_model()
-
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+def _predict_finetuned(image: Image.Image) -> dict:
+    model, processor = load_model("finetuned")
     inputs = processor(images=image, return_tensors="pt").to(DEVICE)
 
     with torch.no_grad():
@@ -59,4 +68,50 @@ def predict_image(image_bytes: bytes) -> dict:
     return {
         "predicted_class": model.config.id2label[pred_id],
         "confidence": round(probs[pred_id].item(), 4),
+        "model_used": "finetuned",
     }
+
+
+def _predict_pretrained(image: Image.Image) -> dict:
+    model, processor = load_model("pretrained")
+    inputs = processor(images=image, return_tensors="pt").to(DEVICE)
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+        probs = torch.softmax(outputs.logits, dim=-1)[0]
+
+    cat_prob = probs[IMAGENET_CAT_INDICES].sum().item()
+    dog_prob = probs[IMAGENET_DOG_INDICES].sum().item()
+    total = cat_prob + dog_prob
+
+    if total == 0:
+        # Neither a recognizable cat nor dog breed was in the top predictions.
+        predicted_class = "unknown"
+        confidence = 0.0
+    else:
+        predicted_class = "cat" if cat_prob > dog_prob else "dog"
+        confidence = round(max(cat_prob, dog_prob) / total, 4)
+
+    return {
+        "predicted_class": predicted_class,
+        "confidence": confidence,
+        "model_used": "pretrained",
+    }
+
+
+def predict_image(image_bytes: bytes, model_choice: str = "finetuned") -> dict:
+    """
+    Run inference on raw image bytes using the selected model.
+
+    Args:
+        image_bytes: Raw bytes of the uploaded image file.
+        model_choice: "finetuned" or "pretrained".
+
+    Returns:
+        dict: {"predicted_class": str, "confidence": float, "model_used": str}
+    """
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+
+    if model_choice == "pretrained":
+        return _predict_pretrained(image)
+    return _predict_finetuned(image)
