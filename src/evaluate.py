@@ -156,7 +156,3 @@ def main():
 
     # Plot and save the confusion matrix as an image
     plot_confusion_matrix(metrics["confusion_matrix"], class_names=("Dog", "Not Dog"))
-
-
-if __name__ == "__main__":
-    main()
