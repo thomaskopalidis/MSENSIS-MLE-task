@@ -4,9 +4,7 @@ Inference module for the Cats & Dogs classifier.
 Supports two models, selectable at call time:
 - "finetuned": the ViT fine-tuned on the cats/dogs dataset (models/best_model/)
 - "pretrained": the general-purpose ImageNet ViT (google/vit-base-patch16-224)
-  with no fine-tuning. Its 1000 ImageNet classes are mapped down to a binary
-  cat/dog decision by summing softmax probability over the known ImageNet
-  cat-breed and dog-breed class indices.
+  with no fine-tuning.
 
 Both are used by the FastAPI service (api.py) and the Streamlit UI.
 """
@@ -22,9 +20,9 @@ FINETUNED_MODEL_PATH = Path("models/best_model")
 PRETRAINED_MODEL_NAME = "google/vit-base-patch16-224"
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-# Standard ImageNet-1k class indices for cat and dog breeds.
-IMAGENET_CAT_INDICES = [281, 282, 283, 284, 285]  # tabby, tiger cat, Persian, Siamese, Egyptian
-IMAGENET_DOG_INDICES = list(range(151, 269))  # Chihuahua ... Mexican hairless
+
+IMAGENET_CAT_INDICES = [281, 282, 283, 284, 285]  
+IMAGENET_DOG_INDICES = list(range(151, 269))  
 
 _models = {}  # cache: {"finetuned": (model, processor), "pretrained": (model, processor)}
 
