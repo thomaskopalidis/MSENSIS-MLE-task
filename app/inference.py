@@ -1,14 +1,3 @@
-"""
-Inference module for the Cats & Dogs classifier.
-
-Supports two models, selectable at call time:
-- "finetuned": the ViT fine-tuned on the cats/dogs dataset (models/best_model/)
-- "pretrained": the general-purpose ImageNet ViT (google/vit-base-patch16-224)
-  with no fine-tuning.
-
-Both are used by the FastAPI service (api.py) and the Streamlit UI.
-"""
-
 import io
 from pathlib import Path
 
@@ -26,7 +15,14 @@ IMAGENET_DOG_INDICES = list(range(151, 269))
 
 _models = {}  # cache: {"finetuned": (model, processor), "pretrained": (model, processor)}
 
+"""
+Inference module for the Cats & Dogs classifier.
 
+Supports two models, selectable at call time:
+- "finetuned": the ViT fine-tuned on the cats/dogs dataset (models/best_model/)
+- "pretrained": the general-purpose ImageNet ViT (google/vit-base-patch16-224)
+  with no fine-tuning.
+"""
 def load_model(which: str = "finetuned"):
     """
     Load and cache one of the two supported models.
