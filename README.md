@@ -34,6 +34,13 @@ source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+This repository tracks the model weights with Git LFS. Install it before
+cloning, or run git lfs pull afterwards, otherwise models/best_model/model.safetensors
+will only be a small placeholder file:
+
+```bash
+git lfs install
+```
 ## Data preparation
 
 Place raw images under `data/raw/cats/` and `data/raw/dogs/`, then run:
