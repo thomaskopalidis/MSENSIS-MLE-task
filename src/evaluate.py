@@ -123,36 +123,5 @@ def main():
     # Plot and save the confusion matrix as an image
     plot_confusion_matrix(metrics["confusion_matrix"], class_names=("Dog", "Not Dog"))
 
-
 if __name__ == "__main__":
     main()
-    print("\n" + "=" * (label_width + 12))
-    print(f"{'Metric':<{label_width}}{'Value (%)':>10}")
-    print("-" * (label_width + 12))
-    for name, value in rows:
-        print(f"{name:<{label_width}}{value:>10.2f}")
-    print("=" * (label_width + 12))
-
-
-def main():
-    device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    print(f"Using device: {device}")
-
-    print(f"Loading model from {MODEL_PATH}...")
-    model = ViTForImageClassification.from_pretrained(MODEL_PATH).to(device)
-    processor = ViTImageProcessor.from_pretrained(MODEL_PATH)
-
-    test_ds = CatsDogsDataset(csv_path=TEST_CSV, processor=processor)
-    test_loader = DataLoader(test_ds, batch_size=BATCH_SIZE, shuffle=False, num_workers=4)
-
-    print(f"Evaluating on {len(test_ds)} test images...")
-    metrics = evaluate_full(model, test_loader, device)
-
-    print("\n=== Test set results ===")
-    print_metrics_table(metrics)
-
-    print("\nConfusion matrix (rows=true, cols=pred, order=[cat, dog]):")
-    print(f"  {metrics['confusion_matrix']}")
-
-    # Plot and save the confusion matrix as an image
-    plot_confusion_matrix(metrics["confusion_matrix"], class_names=("Dog", "Not Dog"))
