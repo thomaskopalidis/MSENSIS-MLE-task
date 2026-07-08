@@ -6,16 +6,16 @@ served through a FastAPI backend with a Streamlit front-end.
 ## Project structure
 
 ```
-.
+
 ├── app/
 │   ├── api.py              # FastAPI service (/health, /predict)
-│   ├── inference.py         # Model loading + prediction logic
+│   ├── inference.py         # Model loading + prediction logic (both models)
 │   └── streamlit_app.py     # Streamlit UI, calls the API
 ├── src/
 │   ├── data_preprocessing.py  # Builds manifest, stratified train/val/test split
 │   ├── cd_dataset.py           # PyTorch Dataset for cats/dogs
 │   ├── model.py                # ViT model + processor builder
-│   └── train.py                 # Training loop + final test-set evaluation
+│   └── train.py                # Training loop + final test-set │   └── evaluate.py                 # Standalone test-set evaluation + confusion matrix plot
 ├── notebooks/
 │   └── EDA.ipynb                # Data exploration (class balance, image sizes)
 ├── models/
@@ -23,7 +23,6 @@ served through a FastAPI backend with a Streamlit front-end.
 ├── data/
 │   ├── raw/                       # Raw images (cats/, dogs/) - not tracked in git
 │   └── processed/                 # train.csv, val.csv, test.csv
-├── report.pdf                       # Write-up: methodology, results, evaluation
 └── requirements.txt
 ```
 
@@ -52,11 +51,17 @@ stratified split).
 python src/train.py
 ```
 
-Trains a ViT (`google/vit-base-patch16-224`) fine-tuned for binary
+Fine-tunes a ViT (`google/vit-base-patch16-224`) for binary
 classification. The best checkpoint (by validation accuracy) is saved to
-`models/best_model/`, and a final evaluation (accuracy, precision, recall,
-F1, confusion matrix) is printed on the held-out test set.
+`models/best_model/`.
 
+
+## Evaluation 
+```bash
+python src/evaluate.py
+```
+
+Loads the saved checkpoint and reports accuracy, precision, recall, and F1 on the held-out test, prints a metrics table to the console, and saves a confusion matrix plot to `confusion_matrix.png`
 ## Running the app
 
 Start the API (from the project root):
@@ -73,13 +78,17 @@ curl http://localhost:8000/health
 
 Interactive API docs: http://localhost:8000/docs
 
+`/predict` accepts an image file plus a `model_choice` field (`"finetuned"`
+or `"pretrained"`) so the caller can pick which model runs inference.
+
+
 In a second terminal, start the UI:
 
 ```bash
 streamlit run app/streamlit_app.py
 ```
 
-Upload an image of a cat or dog and click "Ταξινόμηση" to get a prediction.
+Upload an image of a cat or dog and click "Classify" to get a prediction.
 
 ## Notes
 
@@ -87,7 +96,7 @@ Upload an image of a cat or dog and click "Ταξινόμηση" to get a predic
   the `from app.inference import ...` import in `api.py` to work.
 - The model expects a `models/best_model/` directory in HuggingFace format
   (`config.json`, `model.safetensors`, `preprocessor_config.json`), produced
-  automatically by `train.py`.
+  automatically by `train.py`. The pretrained baseline (google/vit-base-patch16-224) is downloaded automatically from the Hugging Face Gub on first run. 
 
 ## Copyright
 
